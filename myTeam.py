@@ -44,7 +44,7 @@ class DummyAgent(CaptureAgent):
     def __init__(self, index: int, **kwargs: dict[str, Any]) -> None:
         super().__init__(index, **kwargs)
 
-    def registerInitialState(self, gameState) -> None:
+    def registerInitialState(self, gameState: CaptureGameState) -> None:
         """
         This method handles the initial setup of the agent and populates useful fields,
         such as the team the agent is on and the `pacai.core.distanceCalculator.Distancer`.
