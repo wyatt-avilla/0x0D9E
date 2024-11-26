@@ -1,65 +1,69 @@
 import random
-from enum import Enum
-from typing import Any
-
 from pacai.agents.capture.capture import CaptureAgent
-from pacai.bin.capture import CaptureGameState
-from pacai.core.directions import Directions
 
-
-class Action(Enum):
-    NORTH = Directions.NORTH
-    SOUTH = Directions.SOUTH
-    EAST = Directions.EAST
-    WEST = Directions.WEST
-    STOP = Directions.STOP
-
-
-
-
-def createTeam(firstIndex: int, secondIndex: int, isRed: bool) -> list[CaptureAgent]:
-    """
-    This function should return a list of two agents that will form the capture team,
-    initialized using firstIndex and secondIndex as their agent indexed.
-    isRed is True if the red team is being created,
-    and will be False if the blue team is being created.
-    """
-
-    firstAgent = DummyAgent
-    secondAgent = DummyAgent
-
+def createTeam(firstIndex, secondIndex, isRed):
     return [
-        firstAgent(firstIndex),
-        secondAgent(secondIndex),
+        OffensiveAgent(firstIndex),
+        DefensiveAgent(secondIndex),
     ]
 
+class OffensiveAgent(CaptureAgent):
+    def getSuccessor(self, gameState, action):
+        return gameState.generateSuccessor(self.index, action)
 
-# Copied over from pacai/agents/capture/dummy.py
-class DummyAgent(CaptureAgent):
-    """
-    A Dummy agent to serve as an example of the necessary agent structure.
-    You should look at `pacai.core.baselineTeam` for more details about how to create an agent.
-    """
-
-    def __init__(self, index: int, **kwargs: dict[str, Any]) -> None:
-        super().__init__(index, **kwargs)
-
-    def registerInitialState(self, gameState: CaptureGameState) -> None:
-        """
-        This method handles the initial setup of the agent and populates useful fields,
-        such as the team the agent is on and the `pacai.core.distanceCalculator.Distancer`.
-
-        IMPORTANT: If this method runs for more than 15 seconds, your agent will time out.
-        """
-
-        super().registerInitialState(gameState)
-
-        # Your initialization code goes here, if you need any.
-
-    def chooseAction(self, gameState: CaptureGameState) -> list[Action]:
-        """
-        Randomly pick an action.
-        """
-
+    def chooseAction(self, gameState):
         actions = gameState.getLegalActions(self.index)
+        foodList = self.getFood(gameState).asList()
+        myPos = gameState.getAgentPosition(self.index)
+
+        if len(foodList) > 0:
+            distances = [(self.getMazeDistance(myPos, food), food) for food in foodList]
+            closestFood = min(distances, key=lambda x: x[0])[1]
+
+            bestAction = None
+            minDistance = float('inf')
+            for action in actions:
+                successor = self.getSuccessor(gameState, action)
+                successorPos = successor.getAgentPosition(self.index)
+                distance = self.getMazeDistance(successorPos, closestFood)
+                if distance < minDistance:
+                    minDistance = distance
+                    bestAction = action
+
+            return bestAction
+
+        return random.choice(actions)
+
+
+class DefensiveAgent(CaptureAgent):
+    def getSuccessor(self, gameState, action):
+        return gameState.generateSuccessor(self.index, action)
+    
+    def chooseAction(self, gameState):
+        actions = gameState.getLegalActions(self.index)
+        myPos = gameState.getAgentPosition(self.index)
+        opponents = self.getOpponents(gameState)
+
+        invaders = [
+            gameState.getAgentState(opponent)
+            for opponent in opponents
+            if gameState.getAgentState(opponent).isPacman and gameState.getAgentState(opponent).getPosition() is not None
+        ]
+
+        if invaders:
+            distances = [(self.getMazeDistance(myPos, invader.getPosition()), invader) for invader in invaders]
+            closestInvader = min(distances, key=lambda x: x[0])[1]
+
+            bestAction = None
+            minDistance = float('inf')
+            for action in actions:
+                successor = self.getSuccessor(gameState, action)
+                successorPos = successor.getAgentPosition(self.index)
+                distance = self.getMazeDistance(successorPos, closestInvader.getPosition())
+                if distance < minDistance:
+                    minDistance = distance
+                    bestAction = action
+
+            return bestAction
+
         return random.choice(actions)
